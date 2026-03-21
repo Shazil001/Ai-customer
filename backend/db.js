@@ -7,13 +7,28 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 5000, // wait 5 seconds max for a connection
 });
 
 export async function initDB() {
-  const client = await pool.connect();
+  console.log('⏳ Connecting to PostgreSQL database...');
+  
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ Missing DATABASE_URL in environment variables.');
+    throw new Error('DATABASE_URL environment variable is required');
+  }
+
+  let client;
   try {
+    client = await pool.connect();
+    console.log('✅ Connection to DB successful. Setting up vector schema...');
+
     // Enable pgvector extension (REQUIRED: Make sure your DB supports this)
-    await client.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+    try {
+      await client.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+    } catch (e) {
+      console.warn('⚠️  Could not create "vector" extension automatically. This may fail if your DB is missing pgvector.', e.message);
+    }
 
     // Users table
     await client.query(`
@@ -60,8 +75,16 @@ export async function initDB() {
     `);
 
     console.log('✅ PostgreSQL Database Initialized with pgvector');
+  } catch (err) {
+    console.error('❌ Database Initialization Error:', err.message);
+    if (err.message.includes('ECONNREFUSED')) {
+      console.error('👉 Suggestion: Check if your database host is correct and accessible.');
+    } else if (err.message.includes('authentication failed')) {
+      console.error('👉 Suggestion: Check if your DB password/username is correct.');
+    }
+    throw err; // Cause server crash so Render realizes there is a problem
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 
