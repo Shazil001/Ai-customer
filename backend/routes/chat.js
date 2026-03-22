@@ -98,7 +98,7 @@ Be concise and accurate. Do NOT use outside knowledge.`;
     res.json({ answer, sourceDoc: docName });
   } catch (err) {
     console.error('Chat error:', err);
-    res.status(500).json({ error: 'Failed to generate response' });
+    res.status(500).json({ error: `AI error: ${err.message}` });
   }
 });
 
