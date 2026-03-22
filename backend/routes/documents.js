@@ -2,13 +2,12 @@ import express from 'express';
 import multer from 'multer';
 import * as pdfParseModule from 'pdf-parse';
 const pdfParse = pdfParseModule.default || pdfParseModule;
-import fs from 'fs';
 import OpenAI from 'openai';
 import pool from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Helper: split text into chunks of ~500 chars with overlap
@@ -54,7 +53,6 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
 
   const allowedTypes = ['application/pdf', 'text/plain'];
   if (!allowedTypes.includes(file.mimetype) && !file.originalname.endsWith('.txt')) {
-    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
     return res.status(400).json({ error: 'Only PDF and TXT files are allowed' });
   }
 
@@ -63,15 +61,11 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
     const fileType = file.mimetype === 'application/pdf' ? 'pdf' : 'txt';
 
     if (fileType === 'pdf') {
-      const dataBuffer = fs.readFileSync(file.path);
-      const pdfData = await pdfParse(dataBuffer);
+      const pdfData = await pdfParse(file.buffer);
       text = pdfData.text;
     } else {
-      text = fs.readFileSync(file.path, 'utf8');
+      text = file.buffer.toString('utf8');
     }
-
-    // Clean up temp file
-    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
 
     if (!text || text.trim().length < 10) {
       return res.status(400).json({ error: 'Could not extract text from file' });
@@ -100,7 +94,6 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
     res.json({ id: documentId, name: file.originalname, chunks: chunks.length });
   } catch (err) {
     console.error('Upload error:', err);
-    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
     res.status(500).json({ error: 'Failed to process file' });
   }
 });
