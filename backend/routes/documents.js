@@ -25,7 +25,8 @@ function chunkText(text, chunkSize = 500, overlap = 50) {
 async function getEmbedding(text) {
   const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
   const result = await model.embedContent(text);
-  return result.embedding.values;
+  // Truncate the 3072 dimension vector down to 768 (Matryoshka representation) to fit our vector column limits
+  return result.embedding.values.slice(0, 768);
 }
 
 // GET /api/documents - list user's documents
