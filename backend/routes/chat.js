@@ -1,17 +1,15 @@
 import express from 'express';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 async function getEmbedding(text) {
-  const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: text,
-  });
-  return response.data[0].embedding;
+  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+  const result = await model.embedContent(text);
+  return result.embedding.values;
 }
 
 // GET /api/chat/history/:documentId - load chat history
@@ -78,18 +76,14 @@ Be concise and accurate. Do NOT use outside knowledge.`;
 
     const userPrompt = `Context from document "${docName}":\n\n${context}\n\nQuestion: ${question}`;
 
-    // Call OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 800,
-      temperature: 0.1,
+    // Call Gemini
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: systemPrompt,
     });
-
-    const answer = completion.choices[0].message.content;
+    
+    const result = await model.generateContent(userPrompt);
+    const answer = result.response.text();
 
     // Save message pair to DB
     await pool.query(

@@ -1,13 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import { PDFParse } from 'pdf-parse';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Helper: split text into chunks of ~500 chars with overlap
 function chunkText(text, chunkSize = 500, overlap = 50) {
@@ -21,13 +21,11 @@ function chunkText(text, chunkSize = 500, overlap = 50) {
   return chunks.filter((c) => c.length > 20);
 }
 
-// REAL HELPER: Generate embeddings via OpenAI
+// REAL HELPER: Generate embeddings via Gemini
 async function getEmbedding(text) {
-  const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: text,
-  });
-  return response.data[0].embedding;
+  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+  const result = await model.embedContent(text);
+  return result.embedding.values;
 }
 
 // GET /api/documents - list user's documents

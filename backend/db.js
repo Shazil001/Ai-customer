@@ -50,16 +50,23 @@ export async function initDB() {
       )
     `);
 
-    // Embeddings table (1536 dimensions for text-embedding-3-small)
+    // Embeddings table (768 dimensions for Gemini text-embedding-004)
     await client.query(`
       CREATE TABLE IF NOT EXISTS embeddings (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
         text TEXT NOT NULL,
-        vector vector(1536),
+        vector vector(768),
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+
+    // Attempt to migrate any existing OpenAI (1536) tables to Gemini (768) if they are empty
+    try {
+      await client.query(`ALTER TABLE embeddings ALTER COLUMN vector TYPE vector(768)`);
+    } catch (e) {
+      console.warn("⚠️ Could not alter embeddings dimension. If you have old data, drop the embeddings table first.");
+    }
 
     // Messages table
     await client.query(`
