@@ -23,7 +23,7 @@ function chunkText(text, chunkSize = 500, overlap = 50) {
 
 // REAL HELPER: Generate embeddings via Gemini
 async function getEmbedding(text) {
-  const model = genAI.getGenerativeModel({ model: "embedding-001" });
+  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
   const result = await model.embedContent(text);
   return result.embedding.values;
 }
