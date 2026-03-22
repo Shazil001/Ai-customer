@@ -1,7 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import * as pdfParseModule from 'pdf-parse';
-const pdfParse = pdfParseModule.default || pdfParseModule;
+import { PDFParse } from 'pdf-parse';
 import OpenAI from 'openai';
 import pool from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -61,8 +60,10 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
     const fileType = file.mimetype === 'application/pdf' ? 'pdf' : 'txt';
 
     if (fileType === 'pdf') {
-      const pdfData = await pdfParse(file.buffer);
+      const parser = new PDFParse({ data: file.buffer });
+      const pdfData = await parser.getText();
       text = pdfData.text;
+      await parser.destroy();
     } else {
       text = file.buffer.toString('utf8');
     }
@@ -94,7 +95,7 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
     res.json({ id: documentId, name: file.originalname, chunks: chunks.length });
   } catch (err) {
     console.error('Upload error:', err);
-    res.status(500).json({ error: 'Failed to process file' });
+    res.status(500).json({ error: `Upload failed: ${err.message || 'Unknown error'}` });
   }
 });
 
