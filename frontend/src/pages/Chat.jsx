@@ -69,7 +69,7 @@ export default function Chat() {
       
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
-      setError('Failed to get response from AI. Try again.');
+      setError(err.response?.data?.error || 'Failed to get response from AI. Try again.');
       // Keep input if failed? Or clear as we did optimistically
     } finally {
       setIsTyping(false);
